@@ -18,7 +18,14 @@ st.write("本系統協助客戶在上線前，針對 API Payload 的「內容正
 # --- 側邊欄：設定區 ---
 with st.sidebar:
     st.header("🔑 系統設定")
-    api_key = st.text_input("輸入 Gemini API Key", type="password", help="請從 Google AI Studio 獲取")
+    
+    # 優先從 Secrets 讀取，若無則顯示輸入框
+    if "GEMINI_API_KEY" in st.secrets:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        st.success("✅ 系統金鑰已自動載入")
+    else:
+        api_key = st.text_input("輸入 Gemini API Key", type="password")
+        st.info("提示：管理員尚未設定全域金鑰，請手動輸入。")
     
     st.divider()
     st.header("📋 管理員定義規格")
