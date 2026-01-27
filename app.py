@@ -52,20 +52,42 @@ with col2:
                 # 1. 配置 API
                 genai.configure(api_key=api_key)
                 
-                # 2. 建立模型 (使用最穩定的 1.5-flash)
+                # 2. 強制指定使用穩定版 (v1) 而非 v1beta
+                # 這裡改用 'models/gemini-1.5-flash-latest' 或 'models/gemini-1.5-flash'
                 model = genai.GenerativeModel(
                     model_name='gemini-1.5-flash',
-                    generation_config={
-                        "temperature": 0.2, # 降低隨機性，讓檢查更精確
-                        "top_p": 0.95,
-                        "max_output_tokens": 8192,
-                    }
                 )
                 
-                # 3. 建立結構化的 Prompt (必須在 generate_content 之前)
+                # 3. 建立 Prompt
                 prompt = f"""
-                你是一位嚴格的 API 測試專家。請針對以下客戶提供的『內容』，對照『API 規格』進行檢查。
+                你是一位嚴格的 API 測試專家。
+                規格：{spec_input}
+                內容：{content_to_check}
+                請列出錯誤並給予修改建議。
+                """
                 
+                # 4. 送出分析 (加入更嚴格的錯誤檢查)
+                with st.spinner('Gemini 正在分析中...'):
+                    # 有些舊 Key 只能抓到 v1 介面，我們強制執行
+                    response = model.generate_content(prompt)
+                    
+                    if response.text:
+                        st.success("分析完成！")
+                        st.markdown(response.text)
+                    else:
+                        st.warning("AI 回傳了空內容，請檢查輸入。")
+
+            except Exception as e:
+                st.error(f"分析失敗，詳細訊息: {str(e)}")
+                # 額外偵錯：列出所有可用的模型名稱
+                if "404" in str(e):
+                    st.write("---")
+                    st.write("🔍 **偵錯資訊：您目前的 API Key 支援的模型清單：**")
+                    try:
+                        models = [m.name for m in genai.list_models()]
+                        st.json(models)
+                    except:
+                        st.write("無法取得模型清單，請檢查 API Key 是否正確。")
                 【API 規格】：
                 {spec_input}
                 
