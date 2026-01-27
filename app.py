@@ -35,7 +35,7 @@ with col2:
                 genai.configure(api_key=api_key)
                 
                 # 解決 404 問題：嘗試使用最通用的名稱
-               model = genai.GenerativeModel('gemini-3-flash-preview')
+               model = genai.GenerativeModel('gemini-2.0-flash')
                 
                 # 組合 Prompt (使用最安全的字串處理方式)
                 prompt = f"你是API專家。請根據規則：{spec_input}，檢查以下內容：{content_to_check}。請列出錯誤並給建議。"
