@@ -52,7 +52,7 @@ with col2:
             try:
                 # 初始化 Gemini
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                model = genai.GenerativeModel('gemini-pro')
                 
                 # 建立結構化的 Prompt
                 prompt = f"""
