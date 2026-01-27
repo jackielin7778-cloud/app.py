@@ -39,7 +39,7 @@ with col2:
                 genai.configure(api_key=api_key)
                 
                 # 2. 建立模型 (使用您清單中確認可用的 2.0 版本)
-                model = genai.GenerativeModel('gemini-2.0-flash')
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 # 3. 建立 Prompt
                 prompt = f"""你是一位嚴格的 API 測試專家。
