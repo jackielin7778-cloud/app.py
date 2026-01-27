@@ -30,7 +30,7 @@ with st.sidebar:
     st.divider()
     st.header("📋 管理員定義規格")
     default_spec = """【必填欄位檢查】：
-- client_id: 字串類型
+- sellerIdentifier: 8個數字，必須符合台灣統一編號編碼原則，字串類型
 - order_amount: 數字類型，必須 > 0
 - items: 列表類型，不可為空
 
