@@ -1,58 +1,59 @@
 import streamlit as st
 import google.generativeai as genai
 
-# --- 頁面配置 ---
-st.set_page_config(page_title="API 整合測試助手", layout="wide")
+# --- 頁面風格配置 ---
+st.set_page_config(page_title="API 整合測試助手", layout="wide", page_icon="🧪")
 
-st.title("🛡️ API 預上線自動化檢測系統")
+st.markdown("""
+    <style>
+    .main { background-color: #f8f9fa; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    .stTextArea textarea { font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- 側邊欄 ---
+st.title("🛡️ API 預上線自動化驗證網關")
+st.write("本系統協助客戶在上線前，針對 API Payload 的「內容正確性」、「邏輯合法性」進行 AI 深度檢查。")
+
+# --- 側邊欄：設定區 ---
 with st.sidebar:
-    st.header("⚙️ 設定")
-    api_key = st.text_input("輸入 Gemini API Key", type="password")
+    st.header("🔑 系統設定")
+    api_key = st.text_input("輸入 Gemini API Key", type="password", help="請從 Google AI Studio 獲取")
+    
     st.divider()
-    default_spec = "1. 必須是 JSON 格式\n2. 必填欄位: client_id, order_amount"
-    spec_input = st.text_area("管理員定義的驗證規則：", value=default_spec, height=200)
+    st.header("📋 管理員定義規格")
+    default_spec = """【必填欄位檢查】：
+- client_id: 字串類型
+- order_amount: 數字類型，必須 > 0
+- items: 列表類型，不可為空
 
-# --- 主畫面 ---
-col1, col2 = st.columns(2)
+【邏輯規則】：
+- 若 items 內包含 'discount_code'，則必須有 'original_price' 欄位。
+- timestamp 必須符合 ISO 8601 格式。"""
+    
+    spec_input = st.text_area("在此輸入 API 驗證規則：", value=default_spec, height=300)
+    st.caption("提示：您可以直接用中文描述複雜的業務邏輯。")
+
+# --- 主畫面：操作區 ---
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.subheader("1. 貼入測試內容")
-    content_to_check = st.text_area("JSON Payload:", height=400)
+    st.subheader("1. 貼入待測資料")
+    content_to_check = st.text_area("請貼入您的 JSON Payload：", height=450, placeholder='{\n  "client_id": "VIP_001",\n  "order_amount": 100,\n  "items": []\n}')
 
 with col2:
-    st.subheader("2. 分析結果")
-    if st.button("🚀 開始分析"):
+    st.subheader("2. AI 診斷報告")
+    if st.button("🚀 開始自動化檢測"):
         if not api_key:
-            st.error("請輸入 API Key")
+            st.error("請在左側選單輸入 API Key 以啟動分析。")
         elif not content_to_check:
-            st.warning("請貼入內容")
+            st.warning("請貼入需要測試的內容。")
         else:
             try:
-                # 配置 API
                 genai.configure(api_key=api_key)
                 
-                # 關鍵修正：直接指定你清單中確認存在的型號
-                # 如果 2.0-flash 還是 429，可以換成 2.0-flash-lite
-                model_name = 'gemini-2.0-flash'
-                model = genai.GenerativeModel(model_name)
-                
-                prompt = f"規則：{spec_input}\n內容：{content_to_check}\n任務：檢查格式並給予修正建議。"
-                
-                with st.spinner(f'正在調用 {model_name}...'):
-                    response = model.generate_content(prompt)
-                    st.success("分析完成！")
-                    st.markdown(response.text)
-
-            except Exception as e:
-                err = str(e)
-                if "429" in err:
-                    st.error("❌ 流量過大：目前免費額度用完，請等 60 秒再試。")
-                elif "404" in err:
-                    st.error("❌ 模型路徑錯誤：請聯絡管理員確認型號。")
-                else:
-                    st.error(f"分析失敗：{err}")
-
-st.divider()
-st.caption("Powered by Gemini 2.0 Flash | 2026 Developer Edition")
+                # 按照您的模型清單，建立優先級順序
+                # 2.0-flash-lite 通常在免費版有較高的成功率
+                models_to_try = [
+                    'gemini-2.0-flash-lite', 
+                    'gemini-2.0
