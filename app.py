@@ -49,10 +49,33 @@ with col2:
         elif not content_to_check:
             st.warning("⚠️ 請貼入要檢查的內容。")
         else:
-            try:
-                # 初始化 Gemini
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-pro')
+try:
+    genai.configure(api_key=api_key)
+    
+    # 使用 1.5 Flash，這是目前主流且支援度最高的名稱
+    model_name = 'gemini-1.5-flash' 
+    
+    # 建立模型
+    model = genai.GenerativeModel(
+        model_name=model_name,
+        generation_config={
+            "temperature": 0.7,
+            "top_p": 0.95,
+            "top_k": 64,
+            "max_output_tokens": 8192,
+        }
+    )
+    
+    with st.spinner(f'正在使用 {model_name} 進行深度分析...'):
+        # 確保 prompt 內容不是空的
+        response = model.generate_content(prompt)
+        st.success("分析完成！")
+        st.markdown(response.text)
+
+except Exception as e:
+    # 如果還是失敗，顯示更詳細的錯誤供我們排查
+    st.error(f"系統錯誤：{str(e)}")
+    st.info("提示：請確認您的 API Key 是否來自 Google AI Studio，且具備 Gemini 1.5 Flash 的存取權限。")
                 
                 # 建立結構化的 Prompt
                 prompt = f"""
