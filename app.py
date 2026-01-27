@@ -12,7 +12,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🛡️ API 預上線自動化驗證網關")
+st.title("🛡️ 關網資訊 03API 上線前自動化驗證系統")
 st.write("本系統協助客戶在上線前，針對 API Payload 的「內容正確性」、「邏輯合法性」進行 AI 深度檢查。")
 
 # --- 側邊欄：設定區 ---
