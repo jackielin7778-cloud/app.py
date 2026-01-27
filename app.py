@@ -23,7 +23,6 @@ with st.sidebar:
     
     st.divider()
     st.header("📋 預設 API 規格")
-    # 你可以預先在這裡寫入你的 API 規則，客戶就不用自己輸入
     default_spec = """
     1. 必須是有效的 JSON 格式。
     2. 必填欄位: 'client_id' (string), 'order_amount' (number), 'items' (list)。
@@ -49,35 +48,21 @@ with col2:
         elif not content_to_check:
             st.warning("⚠️ 請貼入要檢查的內容。")
         else:
-try:
-    genai.configure(api_key=api_key)
-    
-    # 使用 1.5 Flash，這是目前主流且支援度最高的名稱
-    model_name = 'gemini-1.5-flash' 
-    
-    # 建立模型
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        generation_config={
-            "temperature": 0.7,
-            "top_p": 0.95,
-            "top_k": 64,
-            "max_output_tokens": 8192,
-        }
-    )
-    
-    with st.spinner(f'正在使用 {model_name} 進行深度分析...'):
-        # 確保 prompt 內容不是空的
-        response = model.generate_content(prompt)
-        st.success("分析完成！")
-        st.markdown(response.text)
-
-except Exception as e:
-    # 如果還是失敗，顯示更詳細的錯誤供我們排查
-    st.error(f"系統錯誤：{str(e)}")
-    st.info("提示：請確認您的 API Key 是否來自 Google AI Studio，且具備 Gemini 1.5 Flash 的存取權限。")
+            try:
+                # 1. 配置 API
+                genai.configure(api_key=api_key)
                 
-                # 建立結構化的 Prompt
+                # 2. 建立模型 (使用最穩定的 1.5-flash)
+                model = genai.GenerativeModel(
+                    model_name='gemini-1.5-flash',
+                    generation_config={
+                        "temperature": 0.2, # 降低隨機性，讓檢查更精確
+                        "top_p": 0.95,
+                        "max_output_tokens": 8192,
+                    }
+                )
+                
+                # 3. 建立結構化的 Prompt (必須在 generate_content 之前)
                 prompt = f"""
                 你是一位嚴格的 API 測試專家。請針對以下客戶提供的『內容』，對照『API 規格』進行檢查。
                 
@@ -99,14 +84,18 @@ except Exception as e:
                 (請提供一段修正後可直接執行的 JSON 範例，並解釋為什麼這樣改)
                 """
                 
-                with st.spinner('Gemini 正在逐行掃描內容...'):
+                # 4. 送出分析
+                with st.spinner('Gemini 正在分析中...'):
                     response = model.generate_content(prompt)
                     st.success("分析完成！")
                     st.markdown(response.text)
-                    
+
             except Exception as e:
+                # 捕獲並顯示錯誤
                 st.error(f"分析失敗，錯誤訊息: {str(e)}")
+                if "404" in str(e):
+                    st.info("提示：模型名稱可能不正確或 API Key 無權限，請確認使用的是 Gemini 1.5 Flash。")
 
 # --- 底部說明 ---
 st.divider()
-st.caption("© 2024 API 自動化測試網關 | 建議在正式環境串接前，先通過此處驗證。")
+st.caption("© 2026 API 自動化測試網關 | Powered by Gemini 1.5 Flash")
