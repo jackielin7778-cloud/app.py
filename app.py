@@ -5,167 +5,99 @@ import os
 from datetime import datetime
 
 # ==========================================
-# 1. 核心功能：讀取 CSV 規則與錯誤碼
+# 1. 核心功能：讀取 CSV
 # ==========================================
 def load_context_data():
-    """從 CSV 載入業務邏輯與錯誤碼，作為 AI 的參考書"""
     context = ""
-    
-    # 載入 API 業務規則
     if os.path.exists("rules.csv"):
         rules_df = pd.read_csv("rules.csv")
         context += "【1. API 業務規範細則】:\n" + rules_df.to_string(index=False) + "\n\n"
-    
-    # 載入錯誤碼對照表
     if os.path.exists("error_codes.csv"):
         errors_df = pd.read_csv("error_codes.csv")
-        context += "【2. 公司標準錯誤碼對照表 (Error Codes)】:\n" + errors_df.to_string(index=False) + "\n"
-        
-    return context if context else "目前無外部規則參考，請進行一般性邏輯檢查。"
+        context += "【2. 公司標準錯誤碼對照表】:\n" + errors_df.to_string(index=False) + "\n"
+    return context
 
 # ==========================================
-# 2. 介面初始化與語系切換
+# 2. 介面與模型選單設定
 # ==========================================
 st.set_page_config(page_title="AI API Validator", layout="wide", page_icon="🛡️")
 
-# 多語系字典
-LANG_DICT = {
-    "繁體中文": {
-        "header": "🛡️ API 自動化診斷系統 (企業版)",
-        "sidebar_diag": "🛠️ 系統診斷",
-        "input_label": "1. 貼入待測資料 (JSON):",
-        "output_label": "2. AI 診斷報告與建議:",
-        "analyze_btn": "🚀 開始執行分析",
-        "download_btn": "📂 下載 TXT 報告",
-        "status_ok": "API 額度：正常",
-        "status_limit": "API 額度：受限 (請稍候)",
-        "wait_msg": "AI 正在對照規則表中..."
-    },
-    "English": {
-        "header": "🛡️ AI API Validator (Enterprise)",
-        "sidebar_diag": "🛠️ Diagnostics",
-        "input_label": "1. Paste JSON Data:",
-        "output_label": "2. AI Diagnosis & Suggestions:",
-        "analyze_btn": "🚀 Run Analysis",
-        "download_btn": "📂 Download TXT Report",
-        "status_ok": "API Quota: Healthy",
-        "status_limit": "API Quota: Limited",
-        "wait_msg": "AI is cross-referencing rules..."
-    }
-}
-
 with st.sidebar:
-    lang_choice = st.selectbox("🌐 Language / 語系", ["繁體中文", "English"])
-    T = LANG_DICT[lang_choice]
-
-# ==========================================
-# 3. 權限驗證 (邀請碼機制)
-# ==========================================
-ACCESS_CODE = "TEST2026"  # 教材預設密碼
-if 'authenticated' not in st.session_state:
-    st.session_state['authenticated'] = False
-
-if not st.session_state['authenticated']:
-    st.title("🛡️ Secure Access")
-    user_pwd = st.text_input("Enter Access Code / 請輸入邀請碼:", type="password")
-    if st.button("Login"):
-        if user_pwd == ACCESS_CODE:
-            st.session_state['authenticated'] = True
-            st.rerun()
-        else:
-            st.error("Invalid Code / 邀請碼錯誤")
-    st.stop()
-
-# ==========================================
-# 4. API 金鑰與後台監測
-# ==========================================
-# 從 Streamlit Cloud 的 Secrets 取得金鑰
-api_key = st.secrets.get("GEMINI_API_KEY")
-if not api_key:
-    st.error("❌ 找不到 API 金鑰。請在 Streamlit Secrets 中設定 GEMINI_API_KEY。")
-    st.stop()
-
-genai.configure(api_key=api_key)
-
-with st.sidebar:
-    st.divider()
-    with st.expander(T["sidebar_diag"]):
-        # 簡易探針：測試 API 是否被限流
-        try:
-            test_m = genai.GenerativeModel('gemini-1.5-flash')
-            test_m.generate_content("ping", generation_config={"max_output_tokens": 1})
-            st.success(T["status_ok"])
-        except:
-            st.warning(T["status_limit"])
+    st.title("⚙️ 設定中心")
+    lang_choice = st.selectbox("🌐 語系 (Language)", ["繁體中文", "English"])
     
-    if st.button("Logout / 登出"):
-        st.session_state['authenticated'] = False
-        st.rerun()
+    # --- 新增：模型切換選單 ---
+    # 讓 User 根據需求選擇模型
+    model_choice = st.selectbox(
+        "🧠 選擇 AI 模型 (Model)",
+        [
+            "gemini-2.0-flash-lite", 
+            "gemini-2.0-flash", 
+            "gemini-1.5-flash",
+            "gemini-1.5-pro"
+        ],
+        help="Lite 最快且省額度；Pro 最聰明但速度慢且額度緊。"
+    )
+    
+    T = {
+        "繁體中文": {"header": "🛡️ API 自動化診斷系統", "btn": "🚀 開始分析", "dl": "📂 下載報告"},
+        "English": {"header": "🛡️ API Automated Validator", "btn": "🚀 Run Analysis", "dl": "📂 Download Report"}
+    }[lang_choice]
 
 # ==========================================
-# 5. 主程式介面
+# 3. 權限與 API 設定
+# ==========================================
+ACCESS_CODE = "TEST2026"
+if 'auth' not in st.session_state: st.session_state['auth'] = False
+if not st.session_state['auth']:
+    pwd = st.text_input("輸入邀請碼 (Access Code):", type="password")
+    if st.button("登入 (Login)"):
+        if pwd == ACCESS_CODE: 
+            st.session_state['auth'] = True
+            st.rerun()
+    st.stop()
+
+genai.configure(api_key=st.secrets.get("GEMINI_API_KEY"))
+
+# ==========================================
+# 4. 主介面
 # ==========================================
 st.title(T["header"])
+st.info(f"當前使用模型：**{model_choice}**")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader(T["input_label"])
-    user_input = st.text_area("JSON Content:", height=450, placeholder='{"order_id": "123", ...}')
-    analyze_btn = st.button(T["analyze_btn"])
+    user_input = st.text_area("JSON Payload:", height=450)
+    analyze_btn = st.button(T["btn"])
 
 with col2:
-    st.subheader(T["output_label"])
-    
     if analyze_btn and user_input:
-        # 模型自動備援 (2.0 Lite -> 1.5 Flash)
-        models = ['gemini-2.0-flash-lite', 'gemini-1.5-flash']
-        report_content = ""
-        
-        # 載入 CSV 內容作為上下文
         context_data = load_context_data()
         
-        for m_name in models:
+        # 建立嘗試清單：優先用 User 選的模型，失敗則自動備援至 1.5-flash
+        fallback_models = [model_choice, "gemini-1.5-flash"]
+        # 去重，保持選定的模型在最前面
+        models_to_try = list(dict.fromkeys(fallback_models))
+        
+        final_result = ""
+        for m_name in models_to_try:
             try:
                 model = genai.GenerativeModel(m_name)
-                # 組合 Prompt
-                prompt = f"""
-                你現在是一位資深的 API 測試專家。請根據提供的「規範」來審核使用者的「測試資料」。
+                prompt = f"{context_data}\n\n待測資料：\n{user_input}\n\n任務：請對照規則指出錯誤並標註 [ErrorCode]，使用 {lang_choice}。"
                 
-                {context_data}
-                
-                使用者測試資料：
-                {user_input}
-                
-                分析要求：
-                1. 若資料違反「業務規範細則」，請明確指出。
-                2. 若符合任何「公司標準錯誤碼」，請務必標註 [ErrorCode] 代碼。
-                3. 請提供修正後的 JSON 建議範本。
-                4. 回覆語言：{lang_choice}。
-                """
-                
-                with st.spinner(T["wait_msg"]):
+                with st.spinner(f"正在使用 {m_name} 分析中..."):
                     response = model.generate_content(prompt)
-                    report_content = response.text
-                    break
+                    final_result = response.text
+                break # 成功就跳出循環
             except Exception as e:
-                continue # 若失敗則嘗試下一模型
+                st.warning(f"模型 {m_name} 暫時無法使用，嘗試切換至備援模型...")
+                continue
         
-        if report_content:
-            st.session_state['report_cache'] = report_content
+        if final_result:
+            st.session_state['report'] = final_result
+            st.markdown(final_result)
+            st.divider()
+            st.download_button(T["dl"], data=final_result, file_name="report.txt")
         else:
-            st.error("❌ 無法取得分析結果，可能是 API 額度已滿，請稍後再試。")
-
-    # 顯示結果與下載
-    if st.session_state.get('report_cache'):
-        st.markdown(st.session_state['report_cache'])
-        st.divider()
-        st.download_button(
-            label=T["download_btn"],
-            data=st.session_state['report_cache'],
-            file_name=f"Audit_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-            mime="text/plain"
-        )
-
-# 頁尾
-st.caption(f"© 2026 Corporate API Validator | Rules-Driven AI | Last Login: {datetime.now().strftime('%Y-%m-%d')}")
+            st.error("所有模型均無法回應，請檢查 API Key 或網路。")
