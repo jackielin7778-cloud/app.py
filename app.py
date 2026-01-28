@@ -3,135 +3,169 @@ import google.generativeai as genai
 import pandas as pd
 import os
 from datetime import datetime
-from fpdf import FPDF
 
 # ==========================================
-# 1. PDF 報告生成類別
+# 1. 核心功能：讀取 CSV 規則與錯誤碼
 # ==========================================
-class API_Report_PDF(FPDF):
-    def header(self):
-        # 設定頁首
-        self.set_font('helvetica', 'B', 16)
-        self.cell(0, 10, 'API Audit Report', ln=True, align='C')
-        self.ln(10)
-
-    def footer(self):
-        # 設定頁碼
-        self.set_y(-15)
-        self.set_font('helvetica', 'I', 8)
-        self.cell(0, 10, f'Page {self.page_no()}', align='C')
-
-def create_pdf(text):
-    pdf = API_Report_PDF()
-    pdf.add_page()
+def load_context_data():
+    """從 CSV 載入業務邏輯與錯誤碼，作為 AI 的參考書"""
+    context = ""
     
-    # 注意：這裡使用內建字體。
-    # 若要在 PDF 顯示中文，需上傳 .ttf 字型檔到 GitHub
-    # 並使用 pdf.add_font('font_name', '', 'font.ttf', uni=True)
-    pdf.set_font("helvetica", size=12)
+    # 載入 API 業務規則
+    if os.path.exists("rules.csv"):
+        rules_df = pd.read_csv("rules.csv")
+        context += "【1. API 業務規範細則】:\n" + rules_df.to_string(index=False) + "\n\n"
     
-    # 處理換行與特殊字元編碼，避免 PDF 崩潰
-    clean_text = text.encode('latin-1', 'replace').decode('latin-1')
-    pdf.multi_cell(0, 10, txt=clean_text)
-    
-    return pdf.output()
+    # 載入錯誤碼對照表
+    if os.path.exists("error_codes.csv"):
+        errors_df = pd.read_csv("error_codes.csv")
+        context += "【2. 公司標準錯誤碼對照表 (Error Codes)】:\n" + errors_df.to_string(index=False) + "\n"
+        
+    return context if context else "目前無外部規則參考，請進行一般性邏輯檢查。"
 
 # ==========================================
-# 2. 多語系與基礎設定
+# 2. 介面初始化與語系切換
 # ==========================================
+st.set_page_config(page_title="AI API Validator", layout="wide", page_icon="🛡️")
+
+# 多語系字典
 LANG_DICT = {
     "繁體中文": {
-        "title": "🛡️ API 自動化檢測系統",
-        "btn_pdf": "📄 下載 PDF 報告",
-        "btn_txt": "📂 下載 TXT 報告",
-        "msg_wait": "AI 正在掃描邏輯...",
-        "prompt_task": "請用 繁體中文 回覆，指出錯誤並給予 JSON 範本。"
+        "header": "🛡️ API 自動化診斷系統 (企業版)",
+        "sidebar_diag": "🛠️ 系統診斷",
+        "input_label": "1. 貼入待測資料 (JSON):",
+        "output_label": "2. AI 診斷報告與建議:",
+        "analyze_btn": "🚀 開始執行分析",
+        "download_btn": "📂 下載 TXT 報告",
+        "status_ok": "API 額度：正常",
+        "status_limit": "API 額度：受限 (請稍候)",
+        "wait_msg": "AI 正在對照規則表中..."
     },
     "English": {
-        "title": "🛡️ API Automated Validator",
-        "btn_pdf": "📄 Download PDF",
-        "btn_txt": "📂 Download TXT",
-        "msg_wait": "AI is analyzing...",
-        "prompt_task": "Please reply in English, point out errors and provide JSON."
+        "header": "🛡️ AI API Validator (Enterprise)",
+        "sidebar_diag": "🛠️ Diagnostics",
+        "input_label": "1. Paste JSON Data:",
+        "output_label": "2. AI Diagnosis & Suggestions:",
+        "analyze_btn": "🚀 Run Analysis",
+        "download_btn": "📂 Download TXT Report",
+        "status_ok": "API Quota: Healthy",
+        "status_limit": "API Quota: Limited",
+        "wait_msg": "AI is cross-referencing rules..."
     }
 }
 
-st.set_page_config(page_title="API Validator", layout="wide")
 with st.sidebar:
-    selected_lang = st.selectbox("🌐 Language", ["繁體中文", "English"])
-    T = LANG_DICT[selected_lang]
+    lang_choice = st.selectbox("🌐 Language / 語系", ["繁體中文", "English"])
+    T = LANG_DICT[lang_choice]
 
 # ==========================================
-# 3. 權限驗證與 API 設定
+# 3. 權限驗證 (邀請碼機制)
 # ==========================================
-ACCESS_CODE = "TEST2026"
+ACCESS_CODE = "TEST2026"  # 教材預設密碼
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
-# 登入邏輯
 if not st.session_state['authenticated']:
-    pwd = st.text_input("Access Code:", type="password")
+    st.title("🛡️ Secure Access")
+    user_pwd = st.text_input("Enter Access Code / 請輸入邀請碼:", type="password")
     if st.button("Login"):
-        if pwd == ACCESS_CODE:
+        if user_pwd == ACCESS_CODE:
             st.session_state['authenticated'] = True
             st.rerun()
+        else:
+            st.error("Invalid Code / 邀請碼錯誤")
     st.stop()
 
-# 載入金鑰
+# ==========================================
+# 4. API 金鑰與後台監測
+# ==========================================
+# 從 Streamlit Cloud 的 Secrets 取得金鑰
 api_key = st.secrets.get("GEMINI_API_KEY")
+if not api_key:
+    st.error("❌ 找不到 API 金鑰。請在 Streamlit Secrets 中設定 GEMINI_API_KEY。")
+    st.stop()
+
 genai.configure(api_key=api_key)
 
-# ==========================================
-# 4. CSV 規則載入
-# ==========================================
-def get_rules():
-    if os.path.exists("rules.csv"):
-        return pd.read_csv("rules.csv").to_string(index=False)
-    return "No rules available."
+with st.sidebar:
+    st.divider()
+    with st.expander(T["sidebar_diag"]):
+        # 簡易探針：測試 API 是否被限流
+        try:
+            test_m = genai.GenerativeModel('gemini-1.5-flash')
+            test_m.generate_content("ping", generation_config={"max_output_tokens": 1})
+            st.success(T["status_ok"])
+        except:
+            st.warning(T["status_limit"])
+    
+    if st.button("Logout / 登出"):
+        st.session_state['authenticated'] = False
+        st.rerun()
 
-HIDDEN_SPEC = get_rules()
-
 # ==========================================
-# 5. 主介面 UI 與 分析邏輯
+# 5. 主程式介面
 # ==========================================
-st.title(T["title"])
+st.title(T["header"])
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("Input")
-    content = st.text_area("JSON Payload:", height=400)
-    analyze_btn = st.button("🚀 Analyze")
+    st.subheader(T["input_label"])
+    user_input = st.text_area("JSON Content:", height=450, placeholder='{"order_id": "123", ...}')
+    analyze_btn = st.button(T["analyze_btn"])
 
 with col2:
-    st.subheader("Report")
+    st.subheader(T["output_label"])
     
-    if 'report' not in st.session_state:
-        st.session_state['report'] = None
-
-    if analyze_btn and content:
-        # 模型自動備援 (Fallback)
-        for m_name in ['gemini-2.0-flash-lite', 'gemini-1.5-flash']:
+    if analyze_btn and user_input:
+        # 模型自動備援 (2.0 Lite -> 1.5 Flash)
+        models = ['gemini-2.0-flash-lite', 'gemini-1.5-flash']
+        report_content = ""
+        
+        # 載入 CSV 內容作為上下文
+        context_data = load_context_data()
+        
+        for m_name in models:
             try:
                 model = genai.GenerativeModel(m_name)
-                prompt = f"Rules:\n{HIDDEN_SPEC}\nContent:\n{content}\nTask: {T['prompt_task']}"
-                with st.spinner(T["msg_wait"]):
+                # 組合 Prompt
+                prompt = f"""
+                你現在是一位資深的 API 測試專家。請根據提供的「規範」來審核使用者的「測試資料」。
+                
+                {context_data}
+                
+                使用者測試資料：
+                {user_input}
+                
+                分析要求：
+                1. 若資料違反「業務規範細則」，請明確指出。
+                2. 若符合任何「公司標準錯誤碼」，請務必標註 [ErrorCode] 代碼。
+                3. 請提供修正後的 JSON 建議範本。
+                4. 回覆語言：{lang_choice}。
+                """
+                
+                with st.spinner(T["wait_msg"]):
                     response = model.generate_content(prompt)
-                    st.session_state['report'] = response.text
+                    report_content = response.text
                     break
-            except:
-                continue
+            except Exception as e:
+                continue # 若失敗則嘗試下一模型
+        
+        if report_content:
+            st.session_state['report_cache'] = report_content
+        else:
+            st.error("❌ 無法取得分析結果，可能是 API 額度已滿，請稍後再試。")
 
-    # 顯示報告與下載按鈕
-    if st.session_state['report']:
-        st.markdown(st.session_state['report'])
+    # 顯示結果與下載
+    if st.session_state.get('report_cache'):
+        st.markdown(st.session_state['report_cache'])
         st.divider()
-        
-        # 準備 PDF 資料
-        pdf_output = create_pdf(st.session_state['report'])
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            st.download_button(T["btn_txt"], data=st.session_state['report'], file_name="report.txt")
-        with c2:
-            st.download_button(T["btn_pdf"], data=bytes(pdf_output), file_name="report.pdf", mime="application/pdf")
+        st.download_button(
+            label=T["download_btn"],
+            data=st.session_state['report_cache'],
+            file_name=f"Audit_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+            mime="text/plain"
+        )
+
+# 頁尾
+st.caption(f"© 2026 Corporate API Validator | Rules-Driven AI | Last Login: {datetime.now().strftime('%Y-%m-%d')}")
