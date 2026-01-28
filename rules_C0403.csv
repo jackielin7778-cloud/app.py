@@ -8,13 +8,13 @@ detail/Remark,string,否,0~40,明細備註。
 relateNumber,string,是,1~20,來源系統編號/訂單編號。
 invoiceDate,string,否,8~8,格式 YYYYMMDD。長度必須固定為 8 碼。
 invoiceTime,string,否,8~8,格式 HH:mm:ss。長度必須固定為 8 碼。
-sellerIdentifier,string,是,8~8,賣方統編。必須符合新版 12121241 的邏輯乘數 (第7位為7時，和可被10或5整除)。
+sellerIdentifier,decimal,是,8~8,賣方統編。必須符合新版 12121241 的邏輯乘數 (第7位為7時，和可被10或5整除)。
 sellerName,string,是,1~60,賣方中文公司名稱。
 sellerAddress,string,是,1~100,賣方公司登記地址。
 sellerDepartment,string,是,1~10,GateWeb 提供之列印 ID。
 sellerPersonInCharge,string,否,0~30,賣方負責人。
 sellerTelephoneNumber,string,否,0~26,賣方電話。
-buyerIdentifier,string,是,8~10,B2B交易時 為 8 碼，編碼原則必須符合檢查標準，用 12121241 邏輯邏輯乘數計算 (第7位為7時，和可被10或5整除)。；B2C 固定為 10 個 0。
+buyerIdentifier,decimal,是,8~10,B2B交易時 為 8 碼，編碼原則必須符合檢查標準，用 12121241 邏輯邏輯乘數計算 (第7位為7時，和可被10或5整除)。；B2C 固定為 10 個 0。
 buyerName,string,是,1~60,買方名稱。B2C 建議帶「個人」或姓名。或是10個0
 buyerAddress,string,否,0~100,買方地址。
 buyerTelephoneNumber,string,否,0~26,買方電話。
