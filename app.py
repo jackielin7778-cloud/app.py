@@ -9,20 +9,18 @@ from datetime import datetime
 # ==========================================
 def load_spec_data(api_series):
     context = ""
-    # 建立對應的檔案名稱 (rules_C.csv 或 rules_F.csv)
+    # 建立對應的檔案名稱 (如 rules_C.csv)
     file_name = f"rules_{api_series}.csv"
     
-    # 載入業務規則
     if os.path.exists(file_name):
         try:
             df = pd.read_csv(file_name)
             context += f"【重要：當前參考 {api_series} 系列業務規範】\n{df.to_string(index=False)}\n\n"
-        except Exception as e:
+        except:
             context += f"⚠️ 無法讀取 {file_name}，請檢查檔案格式。\n\n"
     else:
-        context += f"⚠️ 系統找不到 {file_name}，將採用通用邏輯進行分析。\n\n"
+        context += f"⚠️ 系統找不到 {file_name}，將採用一般邏輯進行分析。\n\n"
     
-    # 載入通用錯誤碼
     if os.path.exists("error_codes.csv"):
         try:
             errors_df = pd.read_csv("error_codes.csv")
@@ -37,7 +35,6 @@ def load_spec_data(api_series):
 # ==========================================
 st.set_page_config(page_title="API Validator Pro", layout="wide", page_icon="🛡️")
 
-# 側邊欄：系統選單
 with st.sidebar:
     st.title("⚙️ 系統設定")
     lang_choice = st.selectbox("🌐 語系 (Language)", ["繁體中文", "English"])
@@ -67,25 +64,99 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 3. 登入權限驗證
+# 3. 權限驗證
 # ==========================================
 ACCESS_CODE = "TEST2026"
 if 'auth' not in st.session_state:
     st.session_state['auth'] = False
 
 if not st.session_state['auth']:
-    st.title("🛡️ Secure Login")
-    pwd = st.text_input("請輸入邀請碼 (Access Code):", type="password")
+    st.title("🛡️ Secure Access")
+    pwd = st.text_input("請輸入邀請碼:", type="password")
     if st.button("登入"):
         if pwd == ACCESS_CODE:
             st.session_state['auth'] = True
             st.rerun()
         else:
-            st.error("代碼錯誤，請洽管理員。")
+            st.error("邀請碼錯誤")
     st.stop()
 
-# 配置 Google AI (從 Secrets 取得 API Key)
-if "GEMINI_API_KEY" not in st.secrets:
-    st.error("❌ 找不到 API 金鑰。請在 Streamlit 控制台設定 GEMINI_API_KEY。")
+# ⚠️ 這裡最容易出錯，請確保整行完整
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+except Exception as e:
+    st.error("❌ Secrets 中找不到 GEMINI_API_KEY，請檢查 Streamlit Cloud 設定。")
     st.stop()
-genai.configure(api_key=st.secrets["GEM
+
+# ==========================================
+# 4. 主介面：體系選擇與輸入
+# ==========================================
+st.title(T["header"])
+
+st.subheader(T["select_title"])
+api_option = st.selectbox(
+    "請確認目前要檢查的業務範圍：",
+    [
+        "C系列 (包含：C0403, C0503, C0703, D0403, D0503)",
+        "F系列 (包含：F0403, F0503, F0703, G0403, G0503)"
+    ]
+)
+current_series = "C" if "C系列" in api_option else "F"
+
+st.divider()
+
+col_in, col_out = st.columns(2)
+
+with col_in:
+    st.subheader(f"{T['input_title']} ({current_series})")
+    user_input = st.text_area("JSON Payload:", height=450, placeholder='{"Main": {...}}')
+    analyze_btn = st.button(T["btn"], use_container_width=True)
+
+with col_out:
+    st.subheader(T["output_title"])
+    
+    if analyze_btn and user_input:
+        spec_context = load_spec_data(current_series)
+        
+        # ⚠️ 確保清單引號閉合
+        priority_models = ["gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"]
+        
+        final_report = ""
+        used_model = ""
+
+        for m_name in priority_models:
+            try:
+                model = genai.GenerativeModel(m_name)
+                prompt = f"""
+                你是 API 專家。請根據以下規範校對 JSON：
+                {spec_context}
+                
+                使用者資料：
+                {user_input}
+                
+                任務：
+                1. 比對規範指出錯誤。
+                2. 標註對應的 [ErrorCode]。
+                3. 使用 {lang_choice} 提供修正建議。
+                """
+                with st.spinner(f"正在透過 {m_name} 進行分析..."):
+                    response = model.generate_content(prompt)
+                    final_report = response.text
+                    used_model = m_name
+                break 
+            except:
+                continue
+
+        if final_report:
+            st.caption(f"✅ 引擎：{used_model}")
+            st.markdown(final_report)
+            st.divider()
+            st.download_button(
+                label=T["dl"],
+                data=final_report,
+                file_name=f"Report_{current_series}.txt",
+                mime="text/plain"
+            )
+        else:
+            st.error("❌ 所有模型均暫時無法連線。")
