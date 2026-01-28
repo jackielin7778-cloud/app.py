@@ -18,28 +18,15 @@ def load_context_data():
     return context
 
 # ==========================================
-# 2. 介面選單配置
+# 2. 介面設定 (移除模型選單)
 # ==========================================
 st.set_page_config(page_title="AI API Validator Pro", layout="wide", page_icon="🛡️")
 
 with st.sidebar:
-    st.title("🛡️ 系統控制面板")
+    st.title("⚙️ 系統設定")
+    # 僅保留語系選擇，將複雜的模型邏輯隱藏在後台
+    lang_choice = st.selectbox("🌐 語系 (Language)", ["繁體中文", "English"])
     
-    # 使用 st.expander 將「非核心選單」隱藏起來
-    with st.expander("⚙️ 進階模型與語系設定", expanded=False):
-        lang_choice = st.selectbox("🌐 選擇語系 (Language)", ["繁體中文", "English"])
-        
-        model_list = [
-            "gemini-3-flash-preview", 
-            "gemini-2.0-flash-lite", 
-            "gemini-2.0-flash", 
-            "gemini-1.5-flash",
-            "gemini-1.5-pro"
-        ]
-        model_choice = st.selectbox("🧠 選擇 AI 模型", model_list, index=0)
-        st.caption("提示：若預覽版模型不穩定，請手動切換至 1.5-flash。")
-
-    # 定義多語系文字標籤
     T = {
         "繁體中文": {"header": "🛡️ API 自動化診斷系統", "btn": "🚀 執行分析", "dl": "📂 下載報告"},
         "English": {"header": "🛡️ API Automated Validator", "btn": "🚀 Run Analysis", "dl": "📂 Download Report"}
@@ -51,16 +38,61 @@ with st.sidebar:
 ACCESS_CODE = "TEST2026"
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 if not st.session_state['auth']:
-    pwd = st.text_input("請輸入訪問代碼 (Access Code):", type="password")
-    if st.button("登入系統"):
+    pwd = st.text_input("Access Code:", type="password")
+    if st.button("Login"):
         if pwd == ACCESS_CODE: 
             st.session_state['auth'] = True
             st.rerun()
     st.stop()
 
-# 載入 API KEY
 genai.configure(api_key=st.secrets.get("GEMINI_API_KEY"))
 
 # ==========================================
-# 4. 主介面：診斷邏輯
-# =================================
+# 4. 主介面：全自動分析邏輯
+# ==========================================
+st.title(T["header"])
+
+col1, col2 = st.columns(2)
+
+with col1:
+    user_input = st.text_area("待測 JSON 資料:", height=450, placeholder='請在此處貼上 JSON...')
+    analyze_btn = st.button(T["btn"])
+
+with col2:
+    if analyze_btn and user_input:
+        context_data = load_context_data()
+        
+        # --- 自動跳轉邏輯 (Auto-Routing) ---
+        # 定義優先順序：Gemini 3 (最新) -> 2.0 Flash (主流) -> 1.5 Flash (穩定備援)
+        priority_models = [
+            "gemini-3-flash-preview", 
+            "gemini-2.0-flash", 
+            "gemini-1.5-flash"
+        ]
+        
+        final_result = ""
+        success_model = ""
+
+        for m_name in priority_models:
+            try:
+                model = genai.GenerativeModel(m_name)
+                prompt = f"{context_data}\n\n待測資料：\n{user_input}\n\n任務：指出錯誤並標註 [ErrorCode]，使用 {lang_choice}。"
+                
+                with st.spinner(f"AI 正在進行深度診斷..."):
+                    response = model.generate_content(prompt)
+                    final_result = response.text
+                    success_model = m_name # 記錄成功運算的模型
+                break # 成功即跳出循環
+            except Exception:
+                # 若當前模型報錯（如 429 額度滿），靜默跳轉至下一個，不干擾 User
+                continue
+        
+        if final_result:
+            # 在結果上方給予小提示，讓 User 知道後台發生了什麼（選選）
+            st.caption(f"💡 診斷完成 (後台已自動切換至優化路徑: {success_model})")
+            st.session_state['report'] = final_result
+            st.markdown(final_result)
+            st.divider()
+            st.download_button(T["dl"], data=final_result, file_name="Report.txt")
+        else:
+            st.error("目前所有 AI 引擎皆忙碌中，請稍後再試。")
