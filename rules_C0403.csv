@@ -14,7 +14,7 @@ sellerAddress,string,是,1~100,賣方公司登記地址。
 sellerDepartment,string,是,1~10,GateWeb 提供之列印 ID。
 sellerPersonInCharge,string,否,0~30,賣方負責人。
 sellerTelephoneNumber,string,否,0~26,賣方電話。
-buyerIdentifier,string,是,8~10,B2B 為 8 碼統編必須符合新版 12121241 邏輯邏輯乘數 (第7位為7時，和可被10或5整除)。；B2C 固定為 10 個 0。
+buyerIdentifier,string,是,8~10,B2B交易時 為 8 碼，編碼原則必須符合檢查標準，用 12121241 邏輯邏輯乘數計算 (第7位為7時，和可被10或5整除)。；B2C 固定為 10 個 0。
 buyerName,string,是,1~60,買方名稱。B2C 建議帶「個人」或姓名。或是10個0
 buyerAddress,string,否,0~100,買方地址。
 buyerTelephoneNumber,string,否,0~26,買方電話。
@@ -26,7 +26,7 @@ carrierType,string,條件,6~6,載具類別。B2C 且不列印不捐贈時必填�
 carrierId1,string,條件,1~64,載具顯碼。必須等於 carrierId2。若carrierType=5G0001時，內容必須為Email格式。若carrierType=ˇ3J0002時，內容共8碼，第一碼固定為/，其餘7碼由三個符號「+-.」及大寫英文，數字等共39個組成。
 carrierId2,string,條件,1~64,載具隱碼。必須等於 carrierId1。若carrierType=5G0001時，內容必須為Email格式。若carrierType=ˇ3J0002時，內容共8碼，第一碼固定為/，其餘7碼由三個符號「+-.」及大寫英文，數字等共39個組成。
 taxType,string,是,1~1,1:應稅; 2:零稅率; 3:免稅; 9:混合稅。
-taxRate,float,是,-,taxType：1=0.05, 2=0, 3=0, 9=0.05。
+taxRate,float,是,-,taxType如為1或是9，則必須為0.05, taxType如為2或是3時，則必須為0。
 totalAmount,Integer,是,1~12,交易總金額 (含稅)。
 salesAmount,Integer,是,1~12,銷售額。taxType 1或9須 > 0；2或3須 = 0。
 taxAmount,Integer,是,1~12,稅額。taxType=1且總額 > 31時須 > 0。
