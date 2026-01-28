@@ -1,91 +1,91 @@
-Python
-
 import streamlit as st
 import google.generativeai as genai
-import json
 
-# --- 頁面配置 ---
-st.set_page_config(page_title="API 整合測試助手", page_icon="🔍", layout="wide")
+# --- 1. 頁面基礎配置 ---
+st.set_page_config(page_title="API 整合驗證助手", layout="wide", page_icon="🧪")
 
-# 自定義 CSS 讓介面更漂亮
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stTextArea textarea { font-family: 'Courier New', Courier, monospace; }
-    </style>
-    """, unsafe_allow_html=True)
+# --- 2. 存取權限控制 (邀請碼) ---
+# 你可以在這裡更改你的邀請碼
+ACCESS_CODE = "TEST2026" 
 
-st.title("🛠️ API 雙方對接驗證系統")
-st.info("本系統由 Gemini 1.5 Flash 驅動，專門用於上線前的 API 檔案內容與邏輯檢查。")
+# 初始化 Session State (紀錄登入狀態)
+if 'authenticated' not in st.session_state:
+    st.session_state['authenticated'] = False
 
-# --- 側邊欄：管理與金鑰 ---
+def check_password():
+    if st.session_state["pwd_input"] == ACCESS_CODE:
+        st.session_state["authenticated"] = True
+        del st.session_state["pwd_input"] # 登入後刪除密碼緩存
+    else:
+        st.error("❌ 邀請碼錯誤，請洽詢您的客戶經理。")
+
+# 如果尚未通過驗證，顯示登入畫面
+if not st.session_state['authenticated']:
+    st.title("🔒 歡迎使用 API 驗證網關")
+    st.text_input("請輸入邀請碼以繼續：", type="password", key="pwd_input", on_change=check_password)
+    st.stop() # 停止執行後續程式碼
+
+# --- 3. 通過驗證後的正式介面 ---
+st.title("🛡️ API 預上線自動化檢測系統")
+
+# 讀取 Secrets 中的 API Key
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"]
+else:
+    st.error("系統配置錯誤：請管理員於 Secrets 設定 GEMINI_API_KEY。")
+    st.stop()
+
+# --- 側邊欄設定 ---
 with st.sidebar:
-    st.header("🔑 認證設定")
-    api_key = st.text_input("請輸入您的 Gemini API Key", type="password")
+    st.header("📋 驗證規格管理")
+    st.success("🔓 存取權限已啟用")
+    default_spec = """1. 必須是有效的 JSON 格式。
+2. 必填欄位: client_id (string), order_amount (number)。
+3. order_amount 必須大於 0。"""
+    spec_input = st.text_area("管理員定義的驗證規則：", value=default_spec, height=300)
     
-    st.divider()
-    st.header("📋 預設 API 規格")
-    # 你可以預先在這裡寫入你的 API 規則，客戶就不用自己輸入
-    default_spec = """
-    1. 必須是有效的 JSON 格式。
-    2. 必填欄位: 'client_id' (string), 'order_amount' (number), 'items' (list)。
-    3. order_amount 必須大於 0。
-    4. items 列表內每個物件必須包含 'prod_id' 與 'qty'。
-    """
-    spec_input = st.text_area("管理員定義的驗證規則：", value=default_spec, height=200)
+    if st.button("登出"):
+        st.session_state['authenticated'] = False
+        st.rerun()
 
-# --- 主畫面：操作區 ---
+# --- 主畫面佈局 ---
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("1. 貼入測試內容")
-    content_to_check = st.text_area("請在此貼入準備傳送的 API Payload (JSON):", height=400, placeholder='{"client_id": "test_001", ...}')
+    st.subheader("1. 貼入待測資料")
+    content_to_check = st.text_area("JSON Payload:", height=450, placeholder='{"client_id": "test", ...}')
 
 with col2:
-    st.subheader("2. 執行自動化檢查")
-    check_button = st.button("🚀 開始分析檔案內容")
-    
-    if check_button:
-        if not api_key:
-            st.error("❌ 請在側邊欄填入 API Key。")
-        elif not content_to_check:
-            st.warning("⚠️ 請貼入要檢查的內容。")
+    st.subheader("2. AI 診斷報告")
+    if st.button("🚀 開始自動化分析"):
+        if not content_to_check:
+            st.warning("⚠️ 請貼入內容後再進行檢測。")
         else:
             try:
-                # 初始化 Gemini
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # 使用自動嘗試機制，確保穩定性
+                models_to_try = ['gemini-2.0-flash-lite', 'gemini-1.5-flash']
                 
-                # 建立結構化的 Prompt
-                prompt = f"""
-                你是一位嚴格的 API 測試專家。請針對以下客戶提供的『內容』，對照『API 規格』進行檢查。
+                success = False
+                for m_name in models_to_try:
+                    try:
+                        model = genai.GenerativeModel(m_name)
+                        prompt = f"規則：{spec_input}\n內容：{content_to_check}\n任務：精確指出錯誤點並給予正確 JSON 範本。"
+                        
+                        with st.spinner(f'AI 正在執行深度分析...'):
+                            response = model.generate_content(prompt)
+                            st.success(f"檢測完成！")
+                            st.markdown(response.text)
+                            success = True
+                            break
+                    except:
+                        continue
                 
-                【API 規格】：
-                {spec_input}
-                
-                【客戶內容】：
-                {content_to_check}
-                
-                請嚴格依照以下格式回覆：
-                ### 🚩 1. 檔案內容檢查結果
-                (判斷是否符合規範，若格式嚴重錯誤請直接指出)
-                
-                ### ❌ 2. 錯誤明細 (條列式)
-                - 錯誤位置: 
-                - 錯誤原因: 
-                
-                ### 💡 3. 修改建議與正確範本
-                (請提供一段修正後可直接執行的 JSON 範例，並解釋為什麼這樣改)
-                """
-                
-                with st.spinner('Gemini 正在逐行掃描內容...'):
-                    response = model.generate_content(prompt)
-                    st.success("分析完成！")
-                    st.markdown(response.text)
+                if not success:
+                    st.error("目前 API 配額已達上限，請 60 秒後再試。")
                     
             except Exception as e:
-                st.error(f"分析失敗，錯誤訊息: {str(e)}")
+                st.error(f"系統錯誤：{str(e)}")
 
-# --- 底部說明 ---
 st.divider()
-st.caption("© 2024 API 自動化測試網關 | 建議在正式環境串接前，先通過此處驗證
+st.caption("© 2026 API Validator Pro | 已啟用傳輸層加密保護")
