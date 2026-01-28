@@ -3,7 +3,7 @@ detail/amount,decimal,是,1~12,單項含稅總額。
 detail/quantity,decimal,是,1~12,產品數量。
 detail/unitPrice,decimal,是,1~12,單項含稅單價。
 detail/description,string,是,1~256,品名描述。必須包含中文字符。
-detail/sequenceNumber,int,是,1~3,產品序號，應由 1 開始遞增。
+detail/sequenceNumber,int,是,1~3,產品序號。應由 1 開始遞增。
 detail/Remark,string,否,0~40,明細備註。
 relateNumber,string,是,1~20,來源系統編號/訂單編號。
 invoiceDate,string,否,8~8,格式 YYYYMMDD。長度固定 8 碼。
@@ -17,16 +17,15 @@ buyerName,string,是,1~60,買方名稱。
 printMark,string,是,1~1,列印註記：'Y' 或 'N'。
 donateMark,string,是,1~1,捐贈註記：'0' 或 '1'。
 npoban,string,條件,3~7,愛心碼。見規則B與規則C。
-carrierType,string,條件,6~6,載具類別。5G0001(Email)、3J0002(手機)、CQ0001(自然人)。
-carrierId1,string,條件,1~64,載具顯碼。須等於 carrierId2，且須符合規則D之格式。
-carrierId2,string,條件,1~64,載具隱碼。須等於 carrierId1。
+carrierType,string,條件,6~6,載具類別。5G0001(Email)、3J0002(手機條碼)。
+carrierId1,string,條件,1~64,載具顯碼。須等於carrierId2。格式見規則D。
+carrierId2,string,條件,1~64,載具隱碼。必須等於carrierId1內容。
 taxType,string,是,1~1,1:應稅; 2:零稅率; 3:免稅; 9:混合稅。
 taxRate,float,是,-,稅率：1=0.05, 2=0, 3=0, 9=0.05。
 totalAmount,Integer,是,1~12,交易總金額(含稅)。
-salesAmount,Integer,是,1~12,銷售額。taxType 1或9須 > 0。
+salesAmount,Integer,是,1~12,銷售額。taxType 1或9時須 > 0。
 taxAmount,Integer,是,1~12,稅額。taxType=1且總額 > 31時須 > 0。
-mainRemark,string,否,0~200,總表備註。
-[規則A：統編檢查],邏輯,-,-,乘數12121241。乘積之十位與個位加總後，第7位非7則總和須被10整除；第7位為7則總和須被10或5整除。
-[規則B：列印優先],邏輯,-,-,PrintMark=Y 時，DonateMark 必為 0 且 npoban 與載具必為空。
-[規則C：身分捐贈],邏輯,-,-,B2B(統編8碼)不可捐贈，不可帶愛心碼。
-[規則D：載具格式],邏輯,-,-,1. 5G0001：ID須為Email格式。2. 3J0002：共8碼，第1碼為/，後7碼限大寫英文、數字及「+-.」符號。3. CQ0001：2碼大寫+14碼數字。
+[規則A：統編校驗],邏輯,-,-,乘數12121241。第7位非7則Z須被10整除；為7則Z可被10或5整除。
+[規則B：列印優先],邏輯,-,-,PrintMark=Y時，DonateMark必為0且npoban/載具必為空。
+[規則C：身分限制],邏輯,-,-,B2B不可捐贈。PrintMark=N且DonateMark=1時npoban必填。
+[規則D：載具細節],邏輯,-,-,5G0001須為Email格式。3J0002共8碼且首碼為/，限大寫、數字與+-.。
