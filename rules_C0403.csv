@@ -26,7 +26,7 @@ carrierType,string,條件,6~6,載具類別。B2C 且不列印不捐贈時必填�
 carrierId1,string,條件,1~64,載具顯碼。必須等於 carrierId2。若carrierType=5G0001時，內容必須為Email格式。若carrierType=ˇ3J0002時，內容共8碼，第一碼固定為/，其餘7碼由三個符號「+-.」及大寫英文，數字等共39個組成。
 carrierId2,string,條件,1~64,載具隱碼。必須等於 carrierId1。若carrierType=5G0001時，內容必須為Email格式。若carrierType=ˇ3J0002時，內容共8碼，第一碼固定為/，其餘7碼由三個符號「+-.」及大寫英文，數字等共39個組成。
 taxType,string,是,1~1,1:應稅; 2:零稅率; 3:免稅; 9:混合稅。
-taxRate,float,是,-,稅率：1=0.05, 2=0, 3=0, 9=0.05。
+taxRate,float,是,-,taxType：1=0.05, 2=0, 3=0, 9=0.05。
 totalAmount,Integer,是,1~12,交易總金額 (含稅)。
 salesAmount,Integer,是,1~12,銷售額。taxType 1或9須 > 0；2或3須 = 0。
 taxAmount,Integer,是,1~12,稅額。taxType=1且總額 > 31時須 > 0。
