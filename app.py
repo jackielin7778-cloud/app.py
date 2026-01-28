@@ -95,4 +95,65 @@ with c1:
 
 with c2:
     # 2. 選擇「C系列」或「F系列」
-    selected_series_name = st.selectbox("2. 選擇體系：", list(api_tree[selected_main]["
+    selected_series_name = st.selectbox("2. 選擇體系：", list(api_tree[selected_main]["series"].keys()))
+
+with c3:
+    # 3. 選擇子系列 (僅出現對應的代號)
+    sub_list = api_tree[selected_main]["series"][selected_series_name]
+    selected_code = st.selectbox("3. 選擇 API 代號：", sub_list)
+
+# 自動提示目前的格式鎖定狀態
+st.success(f"已鎖定體系：**{selected_code}** | 格式要求：**{expected_format}**")
+st.divider()
+
+# ==========================================
+# 5. 輸入與 AI 分析
+# ==========================================
+col_in, col_out = st.columns(2)
+
+with col_in:
+    st.write(f"### 步驟二：貼入 {expected_format} 資料")
+    user_input = st.text_area("Payload Input:", height=450, placeholder=f"請在此貼入 {selected_code} 的內容...")
+    analyze_btn = st.button(T["btn"], use_container_width=True)
+
+with col_out:
+    st.write("### 步驟三：AI 診斷報告")
+    if analyze_btn and user_input:
+        spec_context = load_api_spec(selected_code)
+        # 模型跳轉路徑
+        priority_models = ["gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"]
+        
+        final_report = ""
+        used_model = ""
+
+        for m_name in priority_models:
+            try:
+                model = genai.GenerativeModel(m_name)
+                prompt = f"""
+                你是 API 專家。現在要診斷的是 {selected_main} 中的 {selected_code}。
+                此業務必須符合 {expected_format} 格式。
+                
+                規則規範：
+                {spec_context}
+                
+                待測資料：
+                {user_input}
+                
+                任務：
+                1. 檢查資料是否符合規則。
+                2. 若有不符，指出錯誤點並標註對應的 [ErrorCode]。
+                3. 使用 {lang_choice} 給出建議與修正範例。
+                """
+                with st.spinner(f"正在透過 {m_name} 分析中..."):
+                    response = model.generate_content(prompt)
+                    final_report = response.text
+                    used_model = m_name
+                break 
+            except:
+                continue
+
+        if final_report:
+            st.caption(f"💡 引擎狀態：{used_model} 運算完成")
+            st.markdown(final_report)
+            st.divider()
+            st.download_button(T["dl"], data=final_report, file_name=f"Report_{selected_code}.txt")
