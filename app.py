@@ -103,3 +103,43 @@ st.divider()
 # ==========================================
 # 5. 輸入與 AI 分析區
 # ==========================================
+col_in, col_out = st.columns(2)
+
+with col_in:
+    st.write(f"### 第二步：貼入資料")
+    user_input = st.text_area(f"請貼入 {selected_code} 的 {expected_format} 內容：", height=450)
+    analyze_btn = st.button(T["btn"], use_container_width=True)
+
+with col_out:
+    st.write("### 第三步：AI 分析報告")
+    if analyze_btn and user_input:
+        spec_context = load_api_spec(selected_code)
+        priority_models = ["gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"]
+        
+        final_report = ""
+        for m_name in priority_models:
+            try:
+                model = genai.GenerativeModel(m_name)
+                prompt = f"""
+                你是 API 專家。
+                任務：檢查代號 {selected_code}，格式需符合 {expected_format}。
+                
+                規格參考：
+                {spec_context}
+                
+                使用者資料：
+                {user_input}
+                
+                請指出錯誤、標註 [ErrorCode] 並提供修正範例 (以 {lang_choice} 回覆)。
+                """
+                with st.spinner(f"正在透過 {m_name} 進行分析..."):
+                    response = model.generate_content(prompt)
+                    final_report = response.text
+                break 
+            except:
+                continue
+
+        if final_report:
+            st.markdown(final_report)
+            st.divider()
+            st.download_button(T["dl"], data=final_report, file_name=f"Report_{selected_code}.txt")
