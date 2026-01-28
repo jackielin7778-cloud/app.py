@@ -5,19 +5,20 @@ import os
 from datetime import datetime
 
 # ==========================================
-# 1. 核心功能：動態讀取規格
+# 1. 核心功能：根據代號讀取專屬 CSV
 # ==========================================
-def load_spec_data(cat_key, series_key):
+def load_api_spec(api_code):
     context = ""
-    # 預期檔案：rules_Order_C.csv, rules_Order_F.csv, rules_Invoice_C.csv, rules_Invoice_F.csv
-    file_name = f"rules_{cat_key}_{series_key}.csv"
+    file_name = f"rules_{api_code}.csv"
     
     if os.path.exists(file_name):
         try:
             df = pd.read_csv(file_name)
-            context += f"【審核規範：{cat_key} / {series_key}】\n{df.to_string(index=False)}\n\n"
+            context += f"【針對 {api_code} 的專屬審核規範】\n{df.to_string(index=False)}\n\n"
         except:
-            context += f"⚠️ 無法讀取檔案：{file_name}\n"
+            context += f"⚠️ 檔案 {file_name} 讀取失敗。\n"
+    else:
+        context += f"⚠️ 找不到 {file_name}，將進行通用邏輯檢查。\n"
     
     if os.path.exists("error_codes.csv"):
         try:
@@ -28,7 +29,7 @@ def load_spec_data(cat_key, series_key):
     return context
 
 # ==========================================
-# 2. 頁面初始化與語系
+# 2. 頁面初始化
 # ==========================================
 st.set_page_config(page_title="API Validator Pro", layout="wide", page_icon="🛡️")
 
@@ -36,24 +37,16 @@ with st.sidebar:
     st.title("⚙️ 系統設定")
     lang_choice = st.selectbox("🌐 語系 (Language)", ["繁體中文", "English"])
     T = {
-        "繁體中文": {
-            "header": "🛡️ API 自動化診斷系統",
-            "step1": "第一步：選擇檢查目標",
-            "step2": "第二步：貼入待測資料",
-            "btn": "🚀 執行 AI 診斷",
-            "dl": "📂 下載分析報告"
-        },
-        "English": {
-            "header": "🛡️ API Automated Validator",
-            "step1": "Step 1: Select Target",
-            "step2": "Step 2: Paste Data",
-            "btn": "🚀 Run AI Diagnosis",
-            "dl": "📂 Download Report"
-        }
+        "繁體中文": {"header": "🛡️ API 自動化診斷系統", "btn": "🚀 執行分析", "dl": "📂 下載報告"},
+        "English": {"header": "🛡️ API Automated Validator", "btn": "🚀 Run Analysis", "dl": "📂 Download Report"}
     }[lang_choice]
+    
+    if st.button("Logout / 登出"):
+        st.session_state['auth'] = False
+        st.rerun()
 
 # ==========================================
-# 3. 權限與 API 配置
+# 3. 權限驗證
 # ==========================================
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 if not st.session_state['auth']:
@@ -64,58 +57,43 @@ if not st.session_state['auth']:
             st.rerun()
     st.stop()
 
-try:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-except:
-    st.error("❌ 找不到 API Key")
-    st.stop()
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # ==========================================
-# 4. 主介面：單一選擇清單
+# 4. 主介面：10 大代號獨立選擇
 # ==========================================
 st.title(T["header"])
 
-st.subheader(T["step1"])
-# 將所有分類整合成單一選單
-selection = st.selectbox(
-    "請選擇 API 類型：",
-    [
-        "訂單類 - C系列 (JSON)",
-        "訂單類 - F系列 (JSON)",
-        "發票類 - C系列 (XML)",
-        "發票類 - F系列 (XML)"
-    ]
-)
+# 定義 10 個代號及其屬性
+api_configs = {
+    "C0403": "JSON", "C0503": "JSON", "C0703": "JSON", "D0403": "JSON", "D0503": "JSON",
+    "F0403": "JSON", "F0503": "JSON", "F0703": "JSON", "G0403": "JSON", "G0503": "JSON",
+    "C0401": "XML",  "C0501": "XML",  "C0701": "XML",  "D0401": "XML",  "D0501": "XML",
+    "F0401": "XML",  "F0501": "XML",  "F0701": "XML",  "G0401": "XML",  "G0501": "XML"
+}
 
-# 解析選擇結果
-if "訂單類" in selection:
-    cat_key = "Order"
-    data_format = "JSON"
-else:
-    cat_key = "Invoice"
-    data_format = "XML"
+st.subheader("第一步：選擇 API 代號")
+selected_code = st.selectbox("請選擇您要檢查的 API 代號：", list(api_configs.keys()))
 
-ser_key = "C" if "C系列" in selection else "F"
+expected_format = api_configs[selected_code]
 
-# 顯示目前狀態
-st.info(f"✅ 已選定：**{cat_key}** 體系 | **{ser_key}** 系列 | 預期格式：**{data_format}**")
+st.info(f"✅ 已選定：**{selected_code}** | 系統將自動以 **{expected_format}** 格式規格進行校對。")
 st.divider()
 
 # ==========================================
-# 5. 分析區
+# 5. 輸入與 AI 分析
 # ==========================================
 col_in, col_out = st.columns(2)
 
 with col_in:
-    st.subheader(f"{T['step2']} ({data_format})")
-    user_input = st.text_area("資料內容 (Input):", height=450)
+    st.write(f"### 第二步：貼入資料 ({expected_format})")
+    user_input = st.text_area("Input Payload:", height=450)
     analyze_btn = st.button(T["btn"], use_container_width=True)
 
 with col_out:
-    st.subheader("📋 診斷報告")
+    st.write("### 第三步：診斷結果")
     if analyze_btn and user_input:
-        spec_context = load_spec_data(cat_key, ser_key)
-        # 模型自動路由
+        spec_context = load_api_spec(selected_code)
         priority_models = ["gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"]
         
         final_report = ""
@@ -123,20 +101,20 @@ with col_out:
             try:
                 model = genai.GenerativeModel(m_name)
                 prompt = f"""
-                你是 API 校對專家。當前業務：{cat_key}, 系列：{ser_key}。
-                預期資料格式：{data_format}。
-                請依據以下規範進行校對：
+                你是 API 專家。現在要檢查的代號是：{selected_code}。
+                預期格式為：{expected_format}。
+                請根據以下專屬規範校對：
                 {spec_context}
                 
-                待分析資料：
+                使用者資料：
                 {user_input}
                 
-                分析任務：
-                1. 確認資料是否符合 {data_format} 語法與業務規則。
+                要求：
+                1. 嚴格核對欄位是否符合 {selected_code} 的規格。
                 2. 發現錯誤請標註 [ErrorCode]。
-                3. 使用 {lang_choice} 回覆結果與修正建议。
+                3. 使用 {lang_choice} 回覆結果與建議。
                 """
-                with st.spinner(f"正在透過 {m_name} 分析中..."):
+                with st.spinner(f"正在透過 {m_name} 校對 {selected_code}..."):
                     response = model.generate_content(prompt)
                     final_report = response.text
                 break 
@@ -146,4 +124,4 @@ with col_out:
         if final_report:
             st.markdown(final_report)
             st.divider()
-            st.download_button(T["dl"], data=final_report, file_name=f"Audit_{cat_key}_{ser_key}.txt")
+            st.download_button(T["dl"], data=final_report, file_name=f"Report_{selected_code}.txt")
