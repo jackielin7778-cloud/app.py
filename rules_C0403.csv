@@ -18,7 +18,7 @@ printMark,string,是,1~1,列印註記：'Y' 或 'N'。
 donateMark,string,是,1~1,捐贈註記：'0' 或 '1'。
 npoban,string,條件,3~7,愛心碼。見規則B與規則C。
 carrierType,string,條件,6~6,載具類別。5G0001(Email)、3J0002(手機條碼)。
-carrierId1,string,條件,1~64,載具顯碼。須等於carrierId2。格式見規則D。
+carrierId1,string,條件,1~64,載具顯碼。須等於carrierId2且符合規則D。
 carrierId2,string,條件,1~64,載具隱碼。必須等於carrierId1內容。
 taxType,string,是,1~1,1:應稅; 2:零稅率; 3:免稅; 9:混合稅。
 taxRate,float,是,-,稅率：1=0.05, 2=0, 3=0, 9=0.05。
