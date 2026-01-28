@@ -8,13 +8,13 @@ detail/Remark,string,否,0~40,明細備註。
 relateNumber,string,是,1~20,來源系統編號/訂單編號。
 invoiceDate,string,否,8~8,格式 YYYYMMDD。長度必須固定為 8 碼。
 invoiceTime,string,否,8~8,格式 HH:mm:ss。長度必須固定為 8 碼。
-sellerIdentifier,decimal,是,8~8,賣方統編。必須符合新版 12121241 的邏輯乘數 (第7位為7時，和可被10或5整除)。
+sellerIdentifier,string,是,8~8,賣方統編。必須通過新版校驗：1.各數字分別乘以[1,2,1,2,1,2,4,1]。2.將各乘積之「十位數與個位數」相加(如18=1+8=9)。3.計算總和Z。4.若第7位數非7：Z必須能被10整除。5.若第7位數為7：Z能被10或5整除皆正確。
 sellerName,string,是,1~60,賣方中文公司名稱。
 sellerAddress,string,是,1~100,賣方公司登記地址。
 sellerDepartment,string,是,1~10,GateWeb 提供之列印 ID。
 sellerPersonInCharge,string,否,0~30,賣方負責人。
 sellerTelephoneNumber,string,否,0~26,賣方電話。
-buyerIdentifier,decimal,是,8~10,B2B交易時 為 8 碼，編碼原則必須符合檢查標準，用 12121241 邏輯邏輯乘數計算 (第7位為7時，和可被10或5整除)。；B2C 固定為 10 個 0。
+buyerIdentifier,string,是,8~10,B2B為8碼統編(須符合上述新版校驗)；B2C固定為10個0。
 buyerName,string,是,1~60,買方名稱。B2C 建議帶「個人」或姓名。或是10個0
 buyerAddress,string,否,0~100,買方地址。
 buyerTelephoneNumber,string,否,0~26,買方電話。
@@ -33,7 +33,7 @@ taxAmount,Integer,是,1~12,稅額。taxType=1且總額 > 31時須 > 0。
 freeTaxSalesAmount,Integer,否,0~12,免稅銷售額 (taxType=3時使用)。
 zeroTaxSalesAmount,Integer,否,0~12,零稅率銷售額 (taxType=2時使用)。
 mainRemark,string,否,0~200,總表備註。
-[規則A：新版統編邏輯],邏輯,-,-,使用乘數 12121241。第7位非7者和須被10整除；第7位為7者和須被10或5整除。
+[規則A：新版統編演算法],邏輯,-,-,嚴格執行財政部12121241邏輯。測試案例：24549211之Z=37，不符整除規則，應判定為[E_TAX_ID_FMT]。
 [規則B：列印與載具],邏輯,-,-,若 PrintMark=Y：則 DonateMark 必為 0 且 npoban 與載具資訊必須為空。
 [規則C：身分別與捐贈],邏輯,-,-,若 buyerIdentifier 為 8 碼 (B2B)：不可捐贈，不帶愛心碼。
 [規則D：載具格式],邏輯,-,-,3J0002(手機條碼)須 /+7碼；CQ0001(自然人)須 2大寫+14數字；EJ0110(GW載具)須 Email 格式。
