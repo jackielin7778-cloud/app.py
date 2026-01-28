@@ -21,7 +21,7 @@ carrierType,string,條件,6~6,載具類別。5G0001(Email)或3J0002(手機)。
 carrierId1,string,條件,1~64,載具顯碼。須等於carrierId2且符合規則D。
 carrierId2,string,條件,1~64,載具隱碼。內容必須與carrierId1完全一致。
 taxType,string,是,1~1,1:應稅; 2:零稅率; 3:免稅; 9:混合稅。
-taxRate,float,是,-,稅率：1=0.05, 2=0, 3=0, 9=0.05。
+taxRate,float,是,-,稅率：1=0.05; 2=0; 3=0; 9=0.05。
 totalAmount,Integer,是,1~12,交易總金額(含稅)。
 salesAmount,Integer,是,1~12,銷售額。taxType 1或9時須 > 0。
 taxAmount,Integer,是,1~12,稅額。taxType=1且總額 > 31時須 > 0。
